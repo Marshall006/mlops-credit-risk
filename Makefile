@@ -3,7 +3,7 @@ PYTHON ?= python3
 VENV = .venv
 BIN = $(VENV)/bin
 
-.PHONY: install data test lint format
+.PHONY: install data train mlflow-ui test lint format
 
 install:  ## Crée l'environnement virtuel et installe le projet
 	$(PYTHON) -m venv $(VENV)
@@ -12,6 +12,12 @@ install:  ## Crée l'environnement virtuel et installe le projet
 
 data:  ## Télécharge et valide les données
 	$(BIN)/python -m credit_risk.data
+
+train:  ## Entraîne, compare les modèles et enregistre tout dans MLflow
+	$(BIN)/python -m credit_risk.train
+
+mlflow-ui:  ## Ouvre l'interface MLflow sur http://localhost:5000
+	$(BIN)/mlflow ui --backend-store-uri sqlite:///mlflow.db --port 5000
 
 test:  ## Lance les tests
 	$(BIN)/pytest -v
