@@ -1,0 +1,19 @@
+# Environnements Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Données et artefacts : jamais versionnés dans Git
+# (les données se re-téléchargent, les modèles se ré-entraînent)
+data/
+models/
+mlruns/
+mlflow.db
+
+# Divers
+.env
+.DS_Store
+.vscode/
