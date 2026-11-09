@@ -1,0 +1,125 @@
+# =============================================================================
+# CI/CD : à chaque push ou pull request, GitHub lance automatiquement
+#   1. quality : lint (Ruff) + tests (pytest)
+#   2. train   : entraînement réel + contrôle qualité du modèle + monitoring
+#   3. docker  : construction de l'image, test de fumée, publication sur GHCR
+# =============================================================================
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:  # lancement manuel depuis l'onglet Actions
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.12"
+  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/credit-risk-api
+
+jobs:
+  quality:
+    name: Lint & tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+      - name: Installer les dépendances
+        run: pip install -e ".[dev]"
+      - name: Lint (Ruff)
+        run: |
+          ruff check .
+          ruff format --check .
+      - name: Tests (pytest)
+        run: pytest -v
+
+  train:
+    name: Entraînement & contrôle du modèle
+    needs: quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+      - run: pip install -e ".[train,monitor]"
+      - name: Entraîner
+        run: python -m credit_risk.train
+      - name: Contrôle qualité (le modèle doit dépasser un seuil minimal)
+        run: |
+          python - <<'EOF'
+          import json, sys
+          m = json.load(open("models/metadata.json"))["test_metrics"]
+          print(json.dumps(m, indent=2))
+          if m["roc_auc"] < 0.75 or m["recall"] < 0.70:
+              sys.exit("Modèle sous le seuil de qualité : déploiement bloqué")
+          EOF
+      - name: Rapport de dérive (démonstration sur une crise simulée)
+        run: python -m credit_risk.monitor --simulate
+      - uses: actions/upload-artifact@v4
+        with:
+          name: model-and-reports
+          path: |
+            models/
+            reports/
+
+  docker:
+    name: Image Docker
+    needs: train
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write  # nécessaire pour publier sur GHCR
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Construire l'image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: runtime
+          load: true
+          tags: credit-risk-api:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Test de fumée (l'API démarre-t-elle et répond-elle ?)
+        run: |
+          docker run -d --name api -p 8000:8000 credit-risk-api:ci
+          for i in $(seq 1 30); do
+            curl -sf localhost:8000/health && break || sleep 1
+          done
+          curl -sf localhost:8000/health | grep '"model_loaded":true'
+          curl -sf -X POST localhost:8000/predict \
+            -H "Content-Type: application/json" \
+            -d @tests/sample_request.json | tee /dev/stderr | grep probability_default
+          docker logs api
+      - name: Vérifier docker-compose.yml
+        run: docker compose config --quiet
+      - name: Se connecter à GHCR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publier l'image (main uniquement)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: runtime
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME }}:latest
+            ${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
+          cache-from: type=gha
