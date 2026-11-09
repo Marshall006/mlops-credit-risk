@@ -3,7 +3,7 @@ PYTHON ?= python3
 VENV = .venv
 BIN = $(VENV)/bin
 
-.PHONY: install data train mlflow-ui test lint format
+.PHONY: install data train mlflow-ui api monitor monitor-demo docker-build up down test lint format
 
 install:  ## Crée l'environnement virtuel et installe le projet
 	$(PYTHON) -m venv $(VENV)
@@ -18,6 +18,24 @@ train:  ## Entraîne, compare les modèles et enregistre tout dans MLflow
 
 mlflow-ui:  ## Ouvre l'interface MLflow sur http://localhost:5000
 	$(BIN)/mlflow ui --backend-store-uri sqlite:///mlflow.db --port 5000
+
+api:  ## Lance l'API en local sur http://localhost:8000/docs
+	PREDICTION_LOG_PATH=logs/predictions.jsonl $(BIN)/uvicorn credit_risk.api:app --reload --port 8000
+
+monitor:  ## Rapport de dérive sur les prédictions réelles de l'API
+	$(BIN)/python -m credit_risk.monitor --current logs/predictions.jsonl
+
+monitor-demo:  ## Rapport de dérive sur une crise économique simulée
+	$(BIN)/python -m credit_risk.monitor --simulate
+
+docker-build:  ## Construit l'image Docker de l'API
+	docker build --target runtime -t credit-risk-api:local .
+
+up:  ## Démarre MLflow + API avec Docker Compose
+	docker compose up -d --build
+
+down:  ## Arrête les conteneurs
+	docker compose down
 
 test:  ## Lance les tests
 	$(BIN)/pytest -v

@@ -5,11 +5,16 @@ est regroupé ici, pour ne jamais avoir de « valeurs magiques » éparpillées
 dans le code.
 """
 
+import os
 from pathlib import Path
 
 # --- Chemins -----------------------------------------------------------------
-# ROOT_DIR = racine du dépôt (deux niveaux au-dessus de src/credit_risk/)
-ROOT_DIR = Path(__file__).resolve().parents[2]
+# ROOT_DIR = dossier de travail du projet. Par défaut, la racine du dépôt (deux
+# niveaux au-dessus de src/credit_risk/) ; dans un conteneur Docker, le paquet
+# est installé ailleurs, donc on le fixe avec la variable CREDIT_RISK_HOME.
+_repo_root = Path(__file__).resolve().parents[2]
+_default_root = _repo_root if (_repo_root / "pyproject.toml").exists() else Path.cwd()
+ROOT_DIR = Path(os.getenv("CREDIT_RISK_HOME", str(_default_root)))
 DATA_DIR = ROOT_DIR / "data"
 RAW_DATA_PATH = DATA_DIR / "raw" / "german_credit.csv"
 MODELS_DIR = ROOT_DIR / "models"

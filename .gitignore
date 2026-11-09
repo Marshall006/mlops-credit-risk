@@ -17,3 +17,6 @@ mlflow.db
 .env
 .DS_Store
 .vscode/
+reports/
+logs/
+mlartifacts/

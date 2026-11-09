@@ -1,0 +1,60 @@
+# =============================================================================
+# Environnement complet en local : serveur MLflow + API de scoring
+#
+#   docker compose up -d --build              # MLflow (5000) + API (8000)
+#   docker compose --profile train run --rm trainer   # entraîne vers MLflow
+#   docker compose down                       # arrête tout
+# =============================================================================
+
+services:
+  # Serveur MLflow : suivi des expériences + registre de modèles
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v3.18.0
+    command: >
+      mlflow server
+      --host 0.0.0.0 --port 5000
+      --backend-store-uri sqlite:////mlflow/mlflow.db
+      --artifacts-destination /mlflow/artifacts
+      --allowed-hosts "mlflow:5000,localhost:*,127.0.0.1:*"
+    ports:
+      - "5000:5000"
+    volumes:
+      - mlflow-data:/mlflow
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  # Entraînement à la demande, résultats envoyés au serveur MLflow
+  trainer:
+    profiles: ["train"]
+    build:
+      context: .
+      target: trainer
+    command: python -m credit_risk.train
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+    volumes:
+      - ./models:/app/models
+    depends_on:
+      mlflow:
+        condition: service_healthy
+
+  # API de scoring (le modèle est déjà inclus dans l'image)
+  api:
+    build:
+      context: .
+      target: runtime
+    image: credit-risk-api:local
+    ports:
+      - "8000:8000"
+    environment:
+      PREDICTION_LOG_PATH: /app/logs/predictions.jsonl
+    volumes:
+      # Les prédictions journalisées restent sur ta machine pour le monitoring
+      - ./logs:/app/logs
+    restart: unless-stopped
+
+volumes:
+  mlflow-data:

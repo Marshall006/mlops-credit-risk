@@ -1,0 +1,18 @@
+# Ce qui n'entre JAMAIS dans l'image Docker (plus léger, plus sûr)
+.git
+.github
+.venv
+__pycache__
+*.pyc
+.pytest_cache
+.ruff_cache
+data/
+models/
+mlruns/
+mlartifacts/
+mlflow.db
+reports/
+logs/
+tests/
+.env
+docs/
