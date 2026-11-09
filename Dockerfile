@@ -19,6 +19,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     CREDIT_RISK_HOME=/app
+# LightGBM a besoin de la bibliothèque système OpenMP (libgomp), absente de
+# l'image « slim ». On nettoie le cache apt pour garder l'image légère.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends libgomp1 \
+ && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
 # --- Étape 1 : entraînement ---------------------------------------------------
