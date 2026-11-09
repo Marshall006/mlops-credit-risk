@@ -21,7 +21,6 @@ concurrency:
 
 env:
   PYTHON_VERSION: "3.12"
-  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/credit-risk-api
 
 jobs:
   quality:
@@ -105,6 +104,8 @@ jobs:
           docker logs api
       - name: Vérifier docker-compose.yml
         run: docker compose config --quiet
+      - name: Nom de l'image en minuscules (exigé par GHCR)
+        run: echo "IMAGE_NAME=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/credit-risk-api" >> "$GITHUB_ENV"
       - name: Se connecter à GHCR
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: docker/login-action@v3

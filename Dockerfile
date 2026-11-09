@@ -28,6 +28,8 @@ WORKDIR /app
 
 # --- Étape 1 : entraînement ---------------------------------------------------
 FROM base AS trainer
+# Pas de Git dans l'image : on évite les avertissements de MLflow
+ENV GIT_PYTHON_REFRESH=quiet
 # On copie d'abord uniquement la description du projet : tant qu'elle ne
 # change pas, Docker réutilise la couche « pip install » en cache.
 COPY pyproject.toml README.md ./
