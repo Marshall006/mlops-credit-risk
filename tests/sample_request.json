@@ -1,0 +1,20 @@
+{
+  "status": "no checking account",
+  "duration": 24,
+  "credit_history": "existing credits paid back duly till now",
+  "purpose": "car (used)",
+  "amount": 4500,
+  "savings": "... < 100 DM",
+  "employment_duration": "1 <= ... < 4 years",
+  "installment_rate": 3,
+  "present_residence": 2,
+  "property": "car or other",
+  "age": 32,
+  "other_installment_plans": "none",
+  "housing": "rent",
+  "number_credits": 1,
+  "job": "skilled employee/official",
+  "people_liable": 1,
+  "telephone": "yes",
+  "other_debtors": "none"
+}
